@@ -40,6 +40,11 @@
   }
   @media(max-height:600px){ .clock{transform:scale(.72)} .date{bottom:8px} }
 </style>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#000000">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Velocity X Time">
 </head>
 <body>
 <header>
@@ -101,5 +106,116 @@ function toggleTheme(){
 }
 update(); setInterval(update,1000);
 </script>
+<script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js"));}</script>
+</body>
+</html><!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Velocity X Time</title>
+<style>
+  :root { --blue:#58b7f2; --bg:#000; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; width:100%; height:100%; background:var(--bg); color:var(--blue); font-family:Arial,Helvetica,sans-serif; overflow:hidden; }
+  body { display:flex; flex-direction:column; }
+  header {
+    height:72px; display:flex; align-items:center; justify-content:space-between;
+    padding:0 18px; font-weight:700;
+  }
+  .brand { font-size:26px; letter-spacing:.2px; }
+  .mode { font-size:15px; position:absolute; left:50%; transform:translateX(-50%); }
+  .controls { display:flex; gap:8px; }
+  button {
+    border:0; border-radius:5px; width:48px; height:42px; background:#101820;
+    color:var(--blue); font-size:21px; cursor:pointer;
+  }
+  button:hover { background:#1b2933; }
+  main { flex:1; display:flex; align-items:center; justify-content:center; }
+  .clock { display:flex; align-items:center; gap:18px; transform:scale(min(1, calc(100vw / 1250))); }
+  .digit { position:relative; width:92px; height:148px; }
+  .seg { position:absolute; background:var(--blue); opacity:.95; }
+  .a,.g,.d { width:64px; height:16px; left:14px; clip-path:polygon(10% 0,90% 0,100% 50%,90% 100%,10% 100%,0 50%); }
+  .a {top:0}.g{top:66px}.d{bottom:0}
+  .f,.b,.e,.c { width:16px; height:62px; clip-path:polygon(50% 0,100% 10%,100% 90%,50% 100%,0 90%,0 10%); }
+  .f{left:0;top:9px}.b{right:0;top:9px}.e{left:0;bottom:9px}.c{right:0;bottom:9px}
+  .off { opacity:.045; }
+  .colon { width:20px; height:148px; position:relative; margin:0 0px; }
+  .colon:before,.colon:after { content:""; position:absolute; width:17px; height:17px; border-radius:50%; background:var(--blue); left:1px; }
+  .colon:before{top:43px}.colon:after{bottom:43px}
+  .date { position:fixed; bottom:28px; left:50%; transform:translateX(-50%); color:#5c7890; font-size:16px; letter-spacing:3px; text-transform:uppercase; }
+  .hint { position:fixed; bottom:8px; right:15px; color:#315064; font-size:11px; }
+  @media(max-width:800px){
+    .brand{font-size:20px}.clock{transform:scale(.65); margin-left:-10px; margin-right:-10px}.date{font-size:12px}
+  }
+  @media(max-height:600px){ .clock{transform:scale(.72)} .date{bottom:8px} }
+</style>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#000000">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Velocity X Time">
+</head>
+<body>
+<header>
+  <div class="brand">Velocity X Time</div>
+  <div class="mode">Digital Clock</div>
+  <div class="controls">
+    <button onclick="toggleFullscreen()" title="Fullscreen">⛶</button>
+    <button onclick="cycleFormat()" title="Time format">12/24</button>
+    <button onclick="toggleSeconds()" title="Seconds">SS</button>
+    <button onclick="cycleTheme()" title="Theme">☼</button>
+  </div>
+</header>
+
+<main>
+  <div class="clock" id="clock"></div>
+</main>
+<div class="date" id="date"></div>
+<div class="hint">Press F11 for browser fullscreen</div>
+
+<script>
+const patterns = {
+  "0":["a","b","c","d","e","f"], "1":["b","c"], "2":["a","b","g","e","d"],
+  "3":["a","b","c","d","g"], "4":["f","g","b","c"], "5":["a","f","g","c","d"],
+  "6":["a","f","g","e","c","d"], "7":["a","b","c"], "8":["a","b","c","d","e","f","g"],
+  "9":["a","b","c","d","f","g"]
+};
+function makeDigit(ch){
+  if(ch===":") return '<div class="colon"></div>';
+  let on=patterns[ch]||[];
+  return '<div class="digit">'+["a","b","c","d","e","f","g"].map(s=>`<span class="seg ${s} ${on.includes(s)?'':'off'}"></span>`).join('')+'</div>';
+}
+let use12=false, showSeconds=true, themeIndex=0;
+const themes=['#58b7f2','#69ff8b','#ff4f5e','#b66cff','#ffd34d','#ffffff'];
+
+function update(){
+  const now=new Date();
+  let h=now.getHours();
+  let suffix='';
+  if(use12){ suffix=h>=12?' PM':' AM'; h=h%12||12; }
+  let time=String(h).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+  if(showSeconds) time+=':'+String(now.getSeconds()).padStart(2,'0');
+  document.getElementById('clock').innerHTML=[...time].map(makeDigit).join('');
+  document.getElementById('date').textContent=
+    now.toLocaleDateString(undefined,{weekday:'long',year:'numeric',month:'long',day:'numeric'})+suffix;
+}
+function cycleFormat(){ use12=!use12; update(); }
+function toggleSeconds(){ showSeconds=!showSeconds; update(); }
+function cycleTheme(){
+  themeIndex=(themeIndex+1)%themes.length;
+  document.documentElement.style.setProperty('--blue',themes[themeIndex]);
+}
+function toggleFullscreen(){
+  if(!document.fullscreenElement) document.documentElement.requestFullscreen?.();
+  else document.exitFullscreen?.();
+}
+function toggleTheme(){
+  const root=document.documentElement;
+  root.style.setProperty('--blue', root.style.getPropertyValue('--blue')==='#58b7f2' ? '#69ff8b' : '#58b7f2');
+}
+update(); setInterval(update,1000);
+</script>
+<script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js"));}</script>
 </body>
 </html>
